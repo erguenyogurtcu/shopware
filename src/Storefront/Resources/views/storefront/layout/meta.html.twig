@@ -206,6 +206,7 @@
         {% block layout_head_javascript_hmr_mode %}
             {% if isHMRMode %}
                 {% block layout_head_javascript_hmr_dev %}
+                    <script type="text/javascript" src="/_webpack_hot_proxy_/storefront/runtime.js"></script>
                     {# Entry point for dev-server CSS #}
                     <script type="text/javascript" src="/_webpack_hot_proxy_/storefront/css.js" defer></script>
 

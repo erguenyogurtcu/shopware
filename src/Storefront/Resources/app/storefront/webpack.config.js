@@ -239,6 +239,12 @@ const coreConfig = {
                 }
             }
 
+            if (isHotMode) {
+                return {
+                    runtimeChunk: 'single',
+                };
+            }
+
             return {}
         })(),
     },
@@ -418,7 +424,7 @@ const mergedCoreConfig = merge([
                             colors: true,
                         },
                     },
-                    hot: false,
+                    hot: true,
                     compress: false,
                     allowedHosts: 'all',
                     webSocketServer: 'sockjs',
