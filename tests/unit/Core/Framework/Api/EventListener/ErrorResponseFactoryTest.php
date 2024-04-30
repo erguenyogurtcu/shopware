@@ -288,6 +288,7 @@ class ErrorResponseFactoryTest extends TestCase
     public function testResourceValueShouldNotThrow(): void
     {
         $fileResource = false;
+
         try {
             $closedFileResource = \tmpfile();
             static::assertTrue(\is_resource($closedFileResource));

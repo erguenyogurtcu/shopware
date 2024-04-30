@@ -14,6 +14,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Indexing\ChildCountUpdater;
 use Shopware\Core\Framework\DataAbstractionLayer\Indexing\EntityIndexer;
 use Shopware\Core\Framework\DataAbstractionLayer\Indexing\EntityIndexingMessage;
 use Shopware\Core\Framework\DataAbstractionLayer\Indexing\TreeUpdater;
+use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Uuid\Uuid;
@@ -106,6 +107,10 @@ class CategoryIndexer extends EntityIndexer
                 $event->getContext(),
                 true
             );
+        }
+
+        if (Feature::isActive('cache_rework')) {
+            return new CategoryIndexingMessage($categoryEvent->getIds(), null, $event->getContext());
         }
 
         $children = $this->fetchChildren($ids, $event->getContext()->getVersionId());

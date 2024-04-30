@@ -99,6 +99,7 @@ class EntityWriteEvent extends Event implements ShopwareEvent
 
             if (\count($primaryKeys) === 1) {
                 $ids[] = reset($primaryKeys);
+
                 continue;
             }
 

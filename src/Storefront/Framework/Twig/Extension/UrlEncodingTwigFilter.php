@@ -2,6 +2,7 @@
 
 namespace Shopware\Storefront\Framework\Twig\Extension;
 
+use Shopware\Core\Content\Media\Core\Dto\Media;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Framework\Log\Package;
 use Twig\Extension\AbstractExtension;
@@ -60,8 +61,12 @@ class UrlEncodingTwigFilter extends AbstractExtension
         return $encodedPath . $path;
     }
 
-    public function encodeMediaUrl(?MediaEntity $media): ?string
+    public function encodeMediaUrl(MediaEntity|Media|null $media): ?string
     {
+        if ($media instanceof Media) {
+            return $this->encodeUrl($media->url);
+        }
+
         if ($media === null || !$media->hasFile()) {
             return null;
         }

@@ -13,6 +13,7 @@ use Shopware\Core\Checkout\Shipping\ShippingMethodEntity;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Pricing\CashRoundingConfig;
+use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\StateAwareTrait;
 use Shopware\Core\Framework\Struct\Struct;
@@ -34,21 +35,61 @@ class SalesChannelContext extends Struct
     protected $token;
 
     /**
+     * used:
+     *  .id
+     *  .displayGross
+     *
      * @var CustomerGroupEntity
      */
     protected $currentCustomerGroup;
 
     /**
+     * used:
+     *  .id (many many usages)
+     *  .factor (many usages)
+     *  .taxFreeFrom (Only in CountryTaxCalculator)
+     *  .isSystemDefault (possible to handle in another way)
+     *  .isoCode (Only in twig currency filter)
+     *
      * @var CurrencyEntity
      */
     protected $currency;
 
     /**
+     * usages:
+     *  .id (delegate to salesChannelId)
+     *
+     *  # cart
+     *  .taxCalculationType (AmountCalculator)
+     *  .paymentMethodId (PaymentMethodCollection, BlockedPaymentMethodSwitcher)
+     *  .paymentMethodIds (PaymentMethodValidator)
+     *  .shippingMethodId (ShippingMethodCollection, BlockedShippingMethodSwitcher)
+     *
+     *  # navigation
+     *  .navigationId (CategoryRoute, NavigationRoute, CategoryUrlProvider, ErrorController)
+     *  .footerCategoryId (NavigationRoute, CategoryUrlProvider, FooterPageletLoader)
+     *  .serviceCategoryId (NavigationRoute, CategoryUrlProvider, HeaderPageletLoader)
+     *  .navigationCategoryDepth (HeaderPageletLoader)
+     *
+     *  # get rid of
+     *  .name (CustomerAccountRecoverRequestEvent)
+     *  .domains (RegisterRoute / SendPasswordRecoveryMailRoute / NewsletterSubscribeRoute / SitemapExporter / ContextSwitchRoute)
+     *  .typeId (ProductExportPartialGenerationHandler)
+     *
+     *  # Storefront meta data
+     *  .analyticsId (CookieController)
+     *  .hreflangActive (HreflangLoader)
+     *  .hreflangDefaultDomainId (HreflangLoader)
+     *  .homeMetaDescription/homeMetaTitle/homeKeywords (NavigationPageLoader)
+     *
      * @var SalesChannelEntity
      */
     protected $salesChannel;
 
     /**
+     * # usages
+     *  .* pricing product/cart/delivery etc
+     *
      * @var TaxCollection
      */
     protected $taxRules;
@@ -59,6 +100,12 @@ class SalesChannelContext extends Struct
     protected $customer;
 
     /**
+     * usages:
+     *  .id (current payment method)
+     *  .appPaymentMethod (PreparedPaymentService/AppPaymentHandler)
+     *  .active
+     *  .name (Blocked message)
+     *
      * @var PaymentMethodEntity
      */
     protected $paymentMethod;
@@ -69,6 +116,12 @@ class SalesChannelContext extends Struct
     protected $shippingMethod;
 
     /**
+     * usages:
+     *   .country.id
+     *   .country.active
+     *   .country.shippingAvailable
+     *   .country.name (error message)
+     *
      * @var ShippingLocation
      */
     protected $shippingLocation;
@@ -107,6 +160,9 @@ class SalesChannelContext extends Struct
         ?CustomerEntity $customer,
         protected CashRoundingConfig $itemRounding,
         protected CashRoundingConfig $totalRounding,
+        /**
+         * @deprecated tag:v6.7.0 - Context contains no more rule ids or area rule ids
+         */
         protected array $areaRuleIds = []
     ) {
         $this->currentCustomerGroup = $currentCustomerGroup;
@@ -193,10 +249,16 @@ class SalesChannelContext extends Struct
     }
 
     /**
+     * @deprecated tag:v6.7.0 - #cache_rework_rule_reason#
+     *
      * @return string[]
      */
     public function getRuleIds(): array
     {
+        if (Feature::isActive('cache_rework')) {
+            return [];
+        }
+
         return $this->getContext()->getRuleIds();
     }
 
@@ -205,6 +267,11 @@ class SalesChannelContext extends Struct
      */
     public function setRuleIds(array $ruleIds): void
     {
+        if (Feature::isActive('cache_rework')) {
+            $this->getContext()->setRuleIds([]);
+
+            return;
+        }
         $this->getContext()->setRuleIds($ruleIds);
     }
 
@@ -215,6 +282,10 @@ class SalesChannelContext extends Struct
      */
     public function getAreaRuleIds(): array
     {
+        if (Feature::isActive('cache_rework')) {
+            return [];
+        }
+
         return $this->areaRuleIds;
     }
 
@@ -227,6 +298,10 @@ class SalesChannelContext extends Struct
      */
     public function getRuleIdsByAreas(array $areas): array
     {
+        if (Feature::isActive('cache_rework')) {
+            return [];
+        }
+
         $ruleIds = [];
 
         foreach ($areas as $area) {
@@ -430,5 +505,10 @@ class SalesChannelContext extends Struct
         $this->context = $before;
 
         return $result;
+    }
+
+    public function getCustomerGroupId(): string
+    {
+        return $this->currentCustomerGroup->getId();
     }
 }

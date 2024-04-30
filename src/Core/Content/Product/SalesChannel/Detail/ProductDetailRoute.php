@@ -12,6 +12,8 @@ use Shopware\Core\Content\Product\SalesChannel\AbstractProductCloseoutFilterFact
 use Shopware\Core\Content\Product\SalesChannel\ProductAvailableFilter;
 use Shopware\Core\Content\Product\SalesChannel\SalesChannelProductDefinition;
 use Shopware\Core\Content\Product\SalesChannel\SalesChannelProductEntity;
+use Shopware\Core\Framework\Adapter\Cache\Event\AddCacheTagEvent;
+use Shopware\Core\Framework\DataAbstractionLayer\Cache\EntityCacheKeyGenerator;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsAnyFilter;
@@ -26,6 +28,7 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[Route(defaults: ['_routeScope' => ['store-api']])]
 #[Package('inventory')]
@@ -42,8 +45,14 @@ class ProductDetailRoute extends AbstractProductDetailRoute
         private readonly CategoryBreadcrumbBuilder $breadcrumbBuilder,
         private readonly SalesChannelCmsPageLoaderInterface $cmsPageLoader,
         private readonly SalesChannelProductDefinition $productDefinition,
-        private readonly AbstractProductCloseoutFilterFactory $productCloseoutFilterFactory
+        private readonly AbstractProductCloseoutFilterFactory $productCloseoutFilterFactory,
+        private readonly EventDispatcherInterface $dispatcher
     ) {
+    }
+
+    public static function buildName(string $parentId): string
+    {
+        return EntityCacheKeyGenerator::buildProductTag($parentId);
     }
 
     public function getDecorated(): AbstractProductDetailRoute
@@ -54,6 +63,7 @@ class ProductDetailRoute extends AbstractProductDetailRoute
     #[Route(path: '/store-api/product/{productId}', name: 'store-api.product.detail', methods: ['POST'], defaults: ['_entity' => 'product'])]
     public function load(string $productId, Request $request, SalesChannelContext $context, Criteria $criteria): ProductDetailRouteResponse
     {
+        // todo@skroblin add http cache
         return Profiler::trace('product-detail-route', function () use ($productId, $request, $context, $criteria) {
             $mainVariantId = $this->checkVariantListingConfig($productId, $context);
 
@@ -71,6 +81,10 @@ class ProductDetailRoute extends AbstractProductDetailRoute
             if (!($product instanceof SalesChannelProductEntity)) {
                 throw new ProductNotFoundException($productId);
             }
+
+            $parent = $product->getParentId() ?? $product->getId();
+
+            $this->dispatcher->dispatch(new AddCacheTagEvent(EntityCacheKeyGenerator::buildProductTag($parent)));
 
             $product->setSeoCategory(
                 $this->breadcrumbBuilder->getProductSeoCategory($product, $context)

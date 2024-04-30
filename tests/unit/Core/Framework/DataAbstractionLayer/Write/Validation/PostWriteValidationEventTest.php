@@ -317,9 +317,11 @@ class PostWriteValidationEventTest extends TestCase
             switch ($command['type']) {
                 case 'insert':
                     $commands[] = new InsertCommand($definition, [], $primaryKey, $existence, '');
+
                     break;
                 case 'delete':
                     $commands[] = new DeleteCommand($definition, $primaryKey, $existence);
+
                     break;
             }
         }

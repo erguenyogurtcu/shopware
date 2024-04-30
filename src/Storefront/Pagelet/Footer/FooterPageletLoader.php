@@ -2,9 +2,20 @@
 
 namespace Shopware\Storefront\Pagelet\Footer;
 
+use Shopware\Core\Checkout\Payment\PaymentMethodCollection;
+use Shopware\Core\Checkout\Payment\SalesChannel\AbstractPaymentMethodRoute;
+use Shopware\Core\Checkout\Shipping\SalesChannel\AbstractShippingMethodRoute;
+use Shopware\Core\Checkout\Shipping\ShippingMethodCollection;
+use Shopware\Core\Content\Category\Dto\Navigation;
+use Shopware\Core\Content\Category\SalesChannel\AbstractNavigationRoute;
 use Shopware\Core\Content\Category\Service\NavigationLoaderInterface;
+use Shopware\Core\Content\Category\Tree\Tree;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Storefront\Event\RouteRequest\PaymentMethodRouteRequestEvent;
+use Shopware\Storefront\Event\RouteRequest\ShippingMethodRouteRequestEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -19,27 +30,84 @@ class FooterPageletLoader implements FooterPageletLoaderInterface
      */
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly NavigationLoaderInterface $navigationLoader
+        private readonly NavigationLoaderInterface $navigationLoader,
+        private readonly AbstractPaymentMethodRoute $paymentMethodRoute,
+        private readonly AbstractShippingMethodRoute $shippingMethodRoute,
+        private readonly AbstractNavigationRoute $navigationRoute
     ) {
     }
 
-    public function load(Request $request, SalesChannelContext $salesChannelContext): FooterPagelet
+    public function load(Request $request, SalesChannelContext $context): FooterPagelet
     {
-        $footerId = $salesChannelContext->getSalesChannel()->getFooterCategoryId();
-
-        $tree = null;
-        if ($footerId) {
-            $navigationId = $request->get('navigationId', $footerId);
-
-            $tree = $this->navigationLoader->load($navigationId, $salesChannelContext, $footerId);
-        }
-
-        $pagelet = new FooterPagelet($tree);
-
-        $this->eventDispatcher->dispatch(
-            new FooterPageletLoadedEvent($pagelet, $salesChannelContext, $request)
+        $footer = new FooterPagelet(
+            $this->loadFooterNavigation($request, $context)
         );
 
-        return $pagelet;
+        // todo@skroblin upgrade guide
+        if (Feature::isActive('cache_rework')) {
+            $footer->paymentMethods = $this->loadPaymentMethods(request: $request, context: $context);
+
+            $footer->shippingMethods = $this->loadShippingMethods(request: $request, context: $context);
+
+            $footer->service = $this->loadServiceMenu(request: $request, context: $context);
+        }
+
+        $this->eventDispatcher->dispatch(
+            new FooterPageletLoadedEvent(pagelet: $footer, salesChannelContext: $context, request: $request)
+        );
+
+        return $footer;
+    }
+
+    public function loadFooterNavigation(Request $request, SalesChannelContext $context): Tree|null|Navigation
+    {
+        if (Feature::isActive('cache_rework')) {
+            return $this->navigationRoute->footer($request, $context);
+        }
+
+        $footerId = $context->getSalesChannel()->getFooterCategoryId();
+
+        if ($footerId === null) {
+            return null;
+        }
+
+        $navigationId = $request->get('navigationId', $footerId);
+
+        return $this->navigationLoader->load($navigationId, $context, $footerId);
+    }
+
+    private function loadShippingMethods(Request $request, SalesChannelContext $context): ShippingMethodCollection
+    {
+        $criteria = new Criteria();
+        $criteria->setTitle('generic-page::shipping-methods');
+
+        $event = new ShippingMethodRouteRequestEvent($request, new Request(), $context, $criteria);
+        $this->eventDispatcher->dispatch($event);
+
+        return $this->shippingMethodRoute
+            ->load($event->getStoreApiRequest(), $context, $event->getCriteria())
+            ->getShippingMethods();
+    }
+
+    private function loadPaymentMethods(Request $request, SalesChannelContext $context): PaymentMethodCollection
+    {
+        $criteria = new Criteria();
+        $criteria->setTitle('generic-page::payment-methods');
+
+        $event = new PaymentMethodRouteRequestEvent($request, new Request(), $context, $criteria);
+        $this->eventDispatcher->dispatch($event);
+
+        return $this->paymentMethodRoute
+            ->load($event->getStoreApiRequest(), $context, $event->getCriteria())
+            ->getPaymentMethods();
+    }
+
+    private function loadServiceMenu(Request $request, SalesChannelContext $context): ?Navigation
+    {
+        if (!Feature::isActive('cache_rework')) {
+            return null;
+        }
+
+        return $this->navigationRoute->service($request, $context);
     }
 }

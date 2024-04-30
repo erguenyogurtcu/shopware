@@ -1,33 +1,55 @@
+{% if not feature('cache_rework')  %}
+    {% if not header is defined and page is defined %}
+        {% set header = page.header %}
+    {% endif %}
+{% endif %}
+
 {% block layout_navigation_categories %}
     {% set navigationMaxDepth = 3 %}
 
     {% if not level %}
         {% set level = 0 %}
     {% endif %}
-    {% set activeId = page.header.navigation.active.id %}
 
-    {% set activePath = page.header.navigation.active.path %}
+    {% if not feature('cache_rework') %}
+        {% set activeId = header.navigation.active.id %}
+
+        {% set activePath = header.navigation.active.path %}
+    {% endif %}
 
     <div class="{% if level == 0 %}row {% endif %}navigation-flyout-categories is-level-{{ level }}">
         {% for treeItem in navigationTree %}
-            {% set id = treeItem.category.id %}
-            {% set name = treeItem.category.translated.name %}
-            {% set link = category_url(treeItem.category) %}
+
+            {% if feature('cache_rework') %}
+                {% set id = treeItem.id %}
+                {% set name = treeItem.name %}
+                {% set link = category_url(treeItem) %}
+                {% set type = treeItem.type %}
+                {% set category = treeItem %}
+                {% set linkType = treeItem.link.type %}
+            {% else %}
+                {% set id = treeItem.category.id %}
+                {% set name = treeItem.category.translated.name %}
+                {% set link = category_url(treeItem.category) %}
+                {% set type = treeItem.category.type %}
+                {% set category = treeItem.category %}
+                {% set linkType = treeItem.category.linkType %}
+            {% endif %}
 
             {% block layout_navigation_categories_item %}
                 <div class="{% if level == 0 %}{% if navigationMedia %}col-4 {% else %}col-3 {% endif %}{% endif %}navigation-flyout-col">
                     {% block layout_navigation_categories_item_link %}
-                        {% if treeItem.category.type == 'folder' %}
+                        {% if type == 'folder' %}
                             <div class="nav-item nav-link navigation-flyout-link is-level-{{ level }}"
                                  title="{{ name }}">
                                 <span itemprop="name">{{ name }}</span>
                             </div>
                         {% else %}
-                            <a class="nav-item nav-link navigation-flyout-link is-level-{{ level }}{% if id == activeId or id in activePath %} active{% endif %}"
+                            <a class="nav-item nav-item-{{ id}} nav-link navigation-flyout-link is-level-{{ level }}{% if id == activeId or id in activePath %} active{% endif %}"
                                href="{{ link }}"
                                itemprop="url"
-                               {% if category_linknewtab(treeItem.category) %}target="_blank"
-                                   {% if treeItem.category.linkType == 'external' %}rel="noopener noreferrer"{% endif %}
+                               {% if category_linknewtab(category) %}target="_blank"
+                                   {% if linkType == 'external' %}rel="noopener noreferrer"{% endif %}
                                {% endif %}
                                title="{{ name }}">
                                 <span itemprop="name">{{ name }}</span>
@@ -40,7 +62,7 @@
                             {% sw_include '@Storefront/storefront/layout/navigation/categories.html.twig' with {
                                 navigationTree: treeItem.children,
                                 level: level + 1,
-                                page: page
+                                header: header
                             } only %}
                         {% endif %}
                     {% endblock %}

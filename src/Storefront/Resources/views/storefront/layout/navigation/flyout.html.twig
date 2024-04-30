@@ -1,6 +1,22 @@
 {% block layout_navigation_flyout %}
-    {% set category = navigationTree.category %}
-    {% set name = category.translated.name %}
+    {% if feature('cache_rework') %}
+        {% set category = navigationTree %}
+        {% set name = navigationTree.name %}
+        {% set id = navigationTree.id %}
+        {% set type = navigationTree.type %}
+        {% set linkType = navigationTree.link.type %}
+        {% set mediaAlt = navigationTree.media.alt %}
+        {% set mediaTitle = navigationTree.media.title %}
+    {% else %}
+        {% set category = navigationTree.category %}
+
+        {% set name = category.translated.name %}
+        {% set id = category.id %}
+        {% set type = category.type %}
+        {% set linkType = category.linkType %}
+        {% set mediaAlt = category.media.translated.alt %}
+        {% set mediaTitle = category.media.translated.title %}
+    {% endif %}
 
     {% block layout_navigation_flyout_bar %}
         <div class="row navigation-flyout-bar">
@@ -8,9 +24,9 @@
                 <div class="col">
                     <div class="navigation-flyout-category-link">
                         {% block layout_navigation_flyout_bar_category_link %}
-                            {% if category.type == 'page' %}
+                            {% if type == 'page' %}
                                 <a class="nav-link"
-                                   href="{{ seoUrl('frontend.navigation.page', { navigationId: category.id }) }}"
+                                   href="{{ seoUrl('frontend.navigation.page', { navigationId: id }) }}"
                                    itemprop="url"
                                    title="{{ name }}">
                                     {% block layout_navigation_flyout_bar_category_link_text %}
@@ -65,7 +81,7 @@
                             <a class="navigation-flyout-teaser-image-container"
                                href="{{ category_url(category) }}"
                                {% if category_linknewtab(category) %}target="_blank"
-                                   {% if category.linkType == 'external' %}rel="noopener noreferrer"{% endif %}
+                                   {% if linkType == 'external' %}rel="noopener noreferrer"{% endif %}
                                {% endif %}
                                title="{{ name }}">
                                 {% sw_thumbnails 'navigation-flyout-teaser-image-thumbnails' with {
@@ -75,8 +91,8 @@
                                     },
                                     attributes: {
                                         class: 'navigation-flyout-teaser-image',
-                                        alt: (category.media.translated.alt ?: ''),
-                                        title: (category.media.translated.title ?: ''),
+                                        alt: (mediaAlt ?: ''),
+                                        title: (mediaTitle ?: ''),
                                         'data-object-fit': 'cover',
                                         loading: 'lazy'
                                     }

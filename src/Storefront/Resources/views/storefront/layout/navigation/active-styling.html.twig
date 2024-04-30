@@ -1,0 +1,22 @@
+
+{% block layout_navigation_active_styling %}
+    <style>
+        {% foreach navigationPath as id %}
+        .nav-item-{{ id }} {
+            color: var(--bs-gray-800);
+            font-weight: 700;
+        }
+        .nav-item-{{ id }} .main-navigation-link-text {
+            border-color: var(--bs-primary);
+        }
+        {% endforeach %}
+
+        .nav-item-{{ navigationId }} {
+            color: var(--bs-gray-800);
+            font-weight: 700;
+        }
+        .nav-item-{{ navigationId }} .main-navigation-link-text {
+            border-color: var(--bs-primary);
+        }
+    </style>
+{% endblock %}

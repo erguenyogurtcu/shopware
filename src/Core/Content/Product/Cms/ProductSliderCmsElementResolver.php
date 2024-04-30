@@ -236,6 +236,7 @@ class ProductSliderCmsElementResolver extends AbstractCmsElementResolver
 
             if (!$variantConfig) {
                 $finalProducts->add($product);
+
                 continue;
             }
 
